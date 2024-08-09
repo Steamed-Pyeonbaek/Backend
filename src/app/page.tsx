@@ -21,7 +21,7 @@ export default function Home() {
     formData.append("document", file);
 
     try {
-      const res = await fetch("/api/v1/ocr", {
+      const res = await fetch("/api/v1/calc", {
         method: "POST",
         body: formData // FormData를 직접 전송합니다.
       });
