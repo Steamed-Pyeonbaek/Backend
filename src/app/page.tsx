@@ -1,6 +1,22 @@
+"use client"
 import Image from "next/image";
 
 export default function Home() {
+
+  const testAPI = async () => {
+    const response = await fetch("/api/v1/ocr", {
+      method: "POST",
+      body: JSON.stringify({
+        prompt: "Hello"
+      })
+    })
+
+    const data = await response.json() 
+
+    console.log(data.message)
+
+  }
+
   return (
     <div className="container">
     <div className="step">
@@ -19,16 +35,16 @@ export default function Home() {
       <h2>오픈뱅킹 API 연동 정보 입력</h2>
       <p>자동 탄소배출현황 확인을 위해 정보 법인통장 내역을 확인합니다</p>
       <div className="form-group">
-        <label htmlFor="bankApiKey">은행계좌 API 인증정보</label>
-        <input type="text" id="bankApiKey" placeholder="은행계좌인증정보 (20자리)" />
+        <label htmlFor="bankApiKey">은행거래고유번호</label>
+        <input type="text" id="bankApiKey" placeholder="은행거래고유번호 (20자리)" />
       </div>
       <div className="form-group">
-        <label htmlFor="corporateId">법인등록번호</label>
-        <input type="text" id="corporateId" placeholder="법인등록번호 (24자리)" />
+        <label htmlFor="corporateId">핀테크이용번호</label>
+        <input type="text" id="corporateId" placeholder="핀테크이용번호 (24자리)" />
       </div>
     </div>
 
-    <button type="submit" className="submit-btn">보고서 생성하기</button>
+    <button onClick={testAPI} type="submit" className="submit-btn">보고서 생성하기</button>
   </div>
   );
 }
