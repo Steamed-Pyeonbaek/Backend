@@ -15,16 +15,24 @@ class Postprocessor {
     });
   }
 
-  public async extract(inputPrompt: string): Promise<string> {
+  public async extract(inputPrompt: string): Promise<{
+    extracted: any;
+    formula: string;
+    info: string;
+  }> {
     const classified = await this.classifyDocument(inputPrompt);
     const docName = this.getDocumentName(classified);
     const instruction = this.getExtractionInstruction(docName);
+
+    const formula = this.getFormula(docName);
+    const info = this.getInfo(docName);
+
     const promptTemplate = this.createPromptTemplate(docName, instruction);
 
     const input = await promptTemplate.invoke({ query: inputPrompt });
-    const response = await this.openai.invoke(input.toChatMessages());
+    const extracted = await this.openai.invoke(input.toChatMessages());
 
-    return response;
+    return { extracted, formula, info };
   }
 
   public async classify(list: any[]): Promise<string> {
@@ -62,11 +70,21 @@ class Postprocessor {
     });
 
     const result = await response.json();
+
     return result.choices[0].message.content;
   }
 
   public async calculate(paid: string, ocr: string): Promise<number> {
-    const expression = await this.generateMathExpression(ocr);
+    const { formula, info, extracted } = await this.extract(ocr);
+
+    console.log(extracted);
+
+    const expression = await this.generateMathExpression(
+      extracted,
+      formula,
+      info
+    );
+
     return math.evaluate(expression);
   }
 
@@ -127,7 +145,9 @@ class Postprocessor {
           5. "주행거리" 열을 무조건 표시
           6. 날짜마다 표시된 주행거리는 전날까지의 누적 주행거리
           *** 중요 ***: 열 제목과 내용이 맞도록 재구성
-        `;
+      `;
+      // 5. "주행거리" 열만 추출하여 표시
+      //           5. "주행거리" 열을 무조건 표시
       default:
         return `
           1. 각 공공문서를 보고 온실가스 배출량을 계산할때 필요한 정보들을 추출
@@ -145,24 +165,88 @@ class Postprocessor {
   ): PromptTemplate {
     return PromptTemplate.fromTemplate(
       `
+        <Context>
         너는 지금부터 주어진 ${docName}를 보고 있는 그대로 추출하는 전문가야.
-        각 ${docName} 별로 주어진 ${instruction}을 수행해:
+        </Context>
+
+        <Instructions>
+        ${instruction}
+        </Instructions>
+
         {query}
       `
     );
   }
 
-  private async generateMathExpression(query: string): Promise<string> {
+  private getFormula(docName: string): string {
+    switch (docName) {
+      case "건축물관리대장":
+        return `
+          
+        `;
+      case "차량관리대장":
+        return `
+        온실가스 배출량 = ((총 주행 거리 - 제외 주행 거리) * 연료 소비 비율) * 발열량 (41.868) * 탄소 계수 * 배출 계수 * 산화 계수 * 44/12 * 10^(-3) 
+        Example: (140-0)*1*41.868*1*1*44/12*10^(-3))
+        `;
+      default:
+        return `
+          
+          `;
+      // 온실가스 배출량 = Σ[((총 주행 거리 - 제외 주행 거리) * 연료 소비 비율) * 발열량 (41.868) * 탄소 계수 * 배출 계수 * 산화 계수 * 44/12 * 10^(-3)]
+    }
+  }
+
+  private getInfo(docName: string): string {
+    switch (docName) {
+      case "건축물관리대장":
+        return `
+          
+        `;
+      case "차량관리대장":
+        return `
+          날짜마다 표시된 주행거리는 전날까지의 누적 주행거리 값임.
+          따라서 총 주행거리는 마지막 날짜의 주행거리에서 첫날 기준 주행거리를 빼서 계산해야 함.
+          Example:
+            주행거리
+              12,000  
+              12,200 
+              12,500 
+              12,550 
+              12,700
+            총 주행거리 = 12,700 - 12,000
+        `;
+      default:
+        return `
+          
+        `;
+    }
+  }
+
+  // formula: 온실가스 배출량 = Σ[((총 주행 거리 - 제외 주행 거리) * 연료 소비 비율) * 발열량 (41.868) * 탄소 계수 * 배출 계수 * 산화 계수 * 44/12 * 10^(-3)] / example (140-0)*1*41.868*1*1*44/12*10^(-3))
+  // info: 날짜마다 표시된 주행거리는 전날까지의 누적 주행거리. 따라서 총 주행거리는 마지막 날짜의 주행거리에서 첫날 기준 주행거리를 빼서 계산해야 함.
+  private async generateMathExpression(
+    query: string,
+    formula: string,
+    info: string
+  ): Promise<string> {
     const promptTemplate = PromptTemplate.fromTemplate(
-      `For {query}, Write only the mathematical expression suitable for evaluation to calculate with "math.evaluate()". Refer to 온실가스 배출량 = Σ[((총 주행 거리 - 제외 주행 거리) * 연료 소비 비율) * 발열량 (41.868) * 탄소 계수 * 배출 계수 * 산화 계수 * 44/12 * 10^(-3)].
-      *** IMPORTANT ***: OUTPUT IS ONLY THE MATHEMATICAL EXPRESSION. DO NOT INCLUDE ANYTHING ELSE.
-      *** INFO ***: 날짜마다 표시된 주행거리는 전날까지의 누적 주행거리. 따라서 총 주행거리는 마지막 날짜의 주행거리에서 첫날 기준 주행거리를 빼서 계산해야 함.
-      ex) (140-0)*1*41.868*1*1*44/12*10^(-3))
+      `For {query}, Write only the mathematical expression suitable for evaluation to calculate with "math.evaluate()". Refer to {formula}.
+      *** IMPORTANT ***: OUTPUT IS ONLY THE MATHEMATICAL EXPRESSION. DO NOT INCLUDE ANYTHING ELSE, EVEN QUOTES.
+      *** INFO ***: {info}
       `
     );
 
-    const input = await promptTemplate.invoke({ query: query });
+    const input = await promptTemplate.invoke({
+      query: query,
+      formula: formula,
+      info: info,
+    });
+
     const response = await this.openai.invoke(input.toChatMessages());
+
+    console.log(response);
+
     return response;
   }
 }
