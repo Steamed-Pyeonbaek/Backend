@@ -51,7 +51,7 @@ export default function Home() {
         <h2>조직 경계 문서 업로드</h2>
         <p>조직경계 지정을 위해 사업자 등록증, 등기부등본, 임대차 계약서, 인수인계 계약서, 배출시설 설치허가증, 유해화학물질 영업허가증, 유형자산관리대장, 시설배치도, 차량관리대장 서류를 업로드 해주세요 (조직 경계에 포함된다고 생각하는 문서 제출) </p>
         <div className="file-upload">
-          <input onChange={addFile} type="file" accept="image/jpeg" id="fileInput" />
+          <input onChange={addFile} type="file" accept="image/*" id="fileInput" />
           {data ? (
             <Image src={URL.createObjectURL(data)} width={200} height={200} alt="NONE" />
           ) : (
@@ -67,7 +67,7 @@ export default function Home() {
         <pre onClick={toggleBar} className="bg-gray-300 text-wrap p-8 cursor-pointer">
           {result}
         </pre>
-      ): (
+      ) : (
         <button onClick={toggleBar} className="w-full bg-gray-300 h-12 text-end pr-4">
           펼치기
         </button>

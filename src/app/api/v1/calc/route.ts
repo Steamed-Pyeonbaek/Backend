@@ -22,15 +22,15 @@ export async function POST(req: Request) {
   // const paidHistory = banking.getPaidHistory();
   // console.log(paidHistory);
   // const classifiedList = await postProcessor.classify(paidHistory);
-  // console.log(classifiedList);
+  // console.log(classifiedLi st);
   // const history = classifiedList.join("\n");
   // console.log(history);
-  const extracted = await postProcessor.extract(inputPrompt);
-  // console.log(extracted);
+  // const extracted = await postProcessor.extract(inputPrompt);
+  // // console.log(extracted);
 
   const ret = await postProcessor.calculate(
     "거래내역은 존재하지 않음",
-    extracted
+    inputPrompt
   );
 
   return NextResponse.json({
